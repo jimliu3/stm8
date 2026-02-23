@@ -192,6 +192,20 @@ u8 Check_RC522Key(unsigned char *rc522)
     return 0;   // not found
 }
 
+static void Motor_PulseFwd_20ms(void)
+{
+    MOTOR_FWD();
+    Delay_ms(20);
+    MOTOR_STOP();
+}
+
+static void Motor_PulseRev_20ms(void)
+{
+    MOTOR_REV();
+    Delay_ms(20);
+    MOTOR_STOP();
+}
+
 static void GPIO_Config(void)
 {
 
@@ -277,6 +291,7 @@ main()
                 break;
             case PKE_OPER_STA_POWER_ON:
                 UART2_SendStr("PKE_OPER_STA_POWER_ON in!");
+								Motor_PulseFwd_20ms();
                 //check 433 key
                 //check 13.56m key
                 //if(key is right) {
@@ -300,6 +315,7 @@ main()
                 if(ret == 1) {
                     TJTW_PKE.oper_state = PKE_OPER_STA_IDLE;
                 } else {
+										Motor_PulseRev_20ms();
                     TJTW_PKE.oper_state = PKE_OPER_STA_POWER_OFF;
                 }
                 UART2_SendStr("PKE_OPER_STA_POWER_ON out!");
@@ -315,6 +331,7 @@ main()
                 if(TJTW_PKE.power_event_flag)
                 {
                     TJTW_PKE.power_event_flag = 0;
+										Motor_PulseRev_20ms();
                     TJTW_PKE.oper_state = PKE_OPER_STA_POWER_OFF;
                     TIM2_CCxCmd(TIM2_CHANNEL_2, DISABLE);
                     GPIO_Init(GPIOD, GPIO_PIN_3, GPIO_MODE_OUT_PP_LOW_FAST);
@@ -344,7 +361,8 @@ main()
                     BR_LIGHT_OFF();
                     Delay_ms(100);
                 }
-                    TJTW_PKE.oper_state = PKE_OPER_STA_POWER_OFF;
+								Motor_PulseRev_20ms();
+								TJTW_PKE.oper_state = PKE_OPER_STA_POWER_OFF;
                 UART2_SendStr("PKE_OPER_STA_LEARN out!");
                 break;
             default:
