@@ -50,6 +50,13 @@ volatile struct PKE_config {
 #define RC522KEY_START_ADDR   0x00004110
 #define RC522KEY_SIZE         4
 #define MAX_RC522KEY_NUM      5
+#define IGN_IS_ON()   (GPIO_ReadInputPin(GPIOB, GPIO_PIN_5) != RESET)  /* PB5=NET16 */
+
+#define IGN_WAIT_10MS_DEFAULT   (1000u)   /* 10s / 10ms = 1000 */
+
+static uint16_t ign_wait_10ms = 0;
+static uint8_t  ign_latched_on = 0;
+
 
 u8 Tx_Buffer[] = "RFID---test";
 #define  BufferSize (countof(Tx_Buffer)-1)
@@ -253,6 +260,8 @@ main()
     TJTW_PKE.power_event_flag = 0;
     TJTW_PKE.learn_event_flag = 0;
     idle=0;
+		ign_wait_10ms = 0;
+		ign_latched_on = 0;
     Clock_Config();
     GPIO_Config();
     EXTI_Config();
@@ -273,6 +282,8 @@ main()
                 UART2_SendStr("PKE_OPER_STA_POWER_OFF in!");
                 enableInterrupts();
 								MOTOR_STOP();
+								ign_wait_10ms = 0;
+								ign_latched_on = 0;
                 halt();
                 Clock_Config();
 
@@ -315,6 +326,10 @@ main()
                 if(ret == 1) {
 									 /* Power ON + key ok => Motor forward 20ms */
 										Motor_Pulse_Fwd_20ms();
+										/*into idle mode to wait 10s*/
+										UART2_SendStr("Start to count down 10s to check IGN on or not!");
+										ign_wait_10ms = IGN_WAIT_10MS_DEFAULT;
+										ign_latched_on = 0;
                     TJTW_PKE.oper_state = PKE_OPER_STA_IDLE;
                 } else {
                     TJTW_PKE.oper_state = PKE_OPER_STA_POWER_OFF;
@@ -329,6 +344,54 @@ main()
                 }
                 BR_PWM(&brightness, &up);
                 Delay_ms(10);
+								
+								/* ===== 10s wait IGN ON¡Aif not then into Power Off mode ===== */
+								if (!ign_latched_on)
+								{
+										if (IGN_IS_ON())
+										{
+												ign_latched_on = 1;
+												ign_wait_10ms  = 0;     /* stop to count down */
+												UART2_SendStr("IGN ON latched, stay IDLE");
+										}
+										else
+										{
+												if (ign_wait_10ms > 0)
+												{
+														ign_wait_10ms--;
+								
+														if (ign_wait_10ms == 0)
+														{
+																UART2_SendStr("IGN timeout, auto power off");
+								
+																/*not into IGN mode need to REV motor and into power off mode*/
+																Motor_Pulse_Rev_20ms();
+								
+																TJTW_PKE.oper_state = PKE_OPER_STA_POWER_OFF;
+								
+																TIM2_CCxCmd(TIM2_CHANNEL_2, DISABLE);
+																GPIO_Init(GPIOD, GPIO_PIN_3, GPIO_MODE_OUT_PP_LOW_FAST);
+																idle = 0;
+								
+																break; /* IGN Off */
+														}
+												}
+										}
+								}
+								
+								if (ign_latched_on)
+								{
+										if (!IGN_IS_ON())
+										{
+												UART2_SendStr("IGN OFF, auto power off");
+												Motor_Pulse_Rev_20ms();
+												TJTW_PKE.oper_state = PKE_OPER_STA_POWER_OFF;
+												TIM2_CCxCmd(TIM2_CHANNEL_2, DISABLE);
+												GPIO_Init(GPIOD, GPIO_PIN_3, GPIO_MODE_OUT_PP_LOW_FAST);
+												idle = 0;
+												break;
+										}
+								}
                 if(TJTW_PKE.power_event_flag)
                 {
                     TJTW_PKE.power_event_flag = 0;
