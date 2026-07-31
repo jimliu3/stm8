@@ -260,7 +260,7 @@ u8 Save_Combined_Key(uint8_t *rfid, uint8_t *rf433_full) {
     if (num > MAX_KEY_NUM)
         num = 0;
 
-    // --- first¡Gcheck exist or not ---
+    // --- firstï¼šcheck exist or not ---
     for (i = 0; i < num; i++) {
         addr = KEY_DATA_START_ADDR + (i * KEY_BLOCK_SIZE);
 
@@ -275,7 +275,7 @@ u8 Save_Combined_Key(uint8_t *rfid, uint8_t *rf433_full) {
             }
         }
 
-        // check 433M is exist or not (8 bytes, §t CRC)
+        // check 433M is exist or not (8 bytes, å« CRC)
         for (k = 0; k < 8; k++) {
             if (FLASH_ReadByte(addr + 4 + k) != rf433_full[k]) {
                 rf433_match = 0;
@@ -291,21 +291,21 @@ u8 Save_Combined_Key(uint8_t *rfid, uint8_t *rf433_full) {
         }
     }
 
-    // --- ²Ä¤G³¡¤À¡G½T©w¤£¦s¦b¡A°õ¦æ¼g¤J ---
-    // ³o¸Ì§Ú­Ì±Ä¥Î´`ÀôÂÐ»\ÅÞ¿è¡A­Y num=5 «h±q 0 ¶}©l¦s
+    // --- ç¬¬äºŒéƒ¨åˆ†ï¼šç¢ºå®šä¸å­˜åœ¨ï¼ŒåŸ·è¡Œå¯«å…¥ ---
+    // é€™è£¡æˆ‘å€‘æŽ¡ç”¨å¾ªç’°è¦†è“‹é‚è¼¯ï¼Œè‹¥ num=5 å‰‡å¾ž 0 é–‹å§‹å­˜
     write_index = (num >= MAX_KEY_NUM) ? 0 : num;
     addr = KEY_DATA_START_ADDR + (write_index * KEY_BLOCK_SIZE);
 
-    // ¼g¤J RFID
+    // å¯«å…¥ RFID
     for (k = 0; k < 4; k++) {
         FLASH_ProgramByte(addr + k, rfid[k]);
     }
-    // ¼g¤J 433MHz (§t CRC ¦@ 10 bytes) ³Ì«á2byte¬O8byte raw keyªºcrc¤]¬O·sªº³ê¿ô½X
+    // å¯«å…¥ 433MHz (å« CRC å…± 10 bytes) æœ€å¾Œ2byteæ˜¯8byte raw keyçš„crcä¹Ÿæ˜¯æ–°çš„å–šé†’ç¢¼
     for (k = 0; k < 10; k++) {
         FLASH_ProgramByte(addr + 4 + k, rf433_full[k]);
     }
 
-    // §ó·s¼Æ¶q (¦pªGÁÙ¨Sº¡¤~¼W¥[¡Aº¡¤F´Nºû«ù MAX_KEY_NUM)
+    // æ›´æ–°æ•¸é‡ (å¦‚æžœé‚„æ²’æ»¿æ‰å¢žåŠ ï¼Œæ»¿äº†å°±ç¶­æŒ MAX_KEY_NUM)
     if (num < MAX_KEY_NUM) {
         FLASH_ProgramByte(KEY_COUNT_ADDR, num + 1);
     }
@@ -342,7 +342,7 @@ u8 Check_Combined_433M(uint8_t *target_rf433) {
     for (i = 0; i < num; i++) {
         addr = KEY_DATA_START_ADDR + (i * KEY_BLOCK_SIZE);
         match = 1;
-        // ±q°¾²¾¶q +4 ¶}©l¤ñ¹ï 8 bytes (§t CRC)
+        // å¾žåç§»é‡ +4 é–‹å§‹æ¯”å° 8 bytes (å« CRC)
         for (k = 0; k < 8; k++) {
             if (FLASH_ReadByte(addr + 4 + k) != target_rf433[k]) {
                 match = 0;
@@ -369,7 +369,7 @@ u8 Check_Combined_RFID(uint8_t *target_rfid) {
     for (i = 0; i < num; i++) {
         addr = KEY_DATA_START_ADDR + (i * KEY_BLOCK_SIZE);
         match = 1;
-        // ±q°¾²¾¶q +0 ¶}©l¤ñ¹ï 4 bytes
+        // å¾žåç§»é‡ +0 é–‹å§‹æ¯”å° 4 bytes
         for (k = 0; k < 4; k++) {
             if (FLASH_ReadByte(addr + k) != target_rfid[k]) {
                 match = 0;
