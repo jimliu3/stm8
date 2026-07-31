@@ -260,7 +260,7 @@ u8 Save_Combined_Key(uint8_t *rfid, uint8_t *rf433_full) {
     if (num > MAX_KEY_NUM)
         num = 0;
 
-    // --- firstï¼šcheck exist or not ---
+    // --- first¡Gcheck exist or not ---
     for (i = 0; i < num; i++) {
         addr = KEY_DATA_START_ADDR + (i * KEY_BLOCK_SIZE);
 
@@ -275,7 +275,7 @@ u8 Save_Combined_Key(uint8_t *rfid, uint8_t *rf433_full) {
             }
         }
 
-        // check 433M is exist or not (8 bytes, å« CRC)
+        // check 433M is exist or not (8 bytes, §t CRC)
         for (k = 0; k < 8; k++) {
             if (FLASH_ReadByte(addr + 4 + k) != rf433_full[k]) {
                 rf433_match = 0;
@@ -291,21 +291,21 @@ u8 Save_Combined_Key(uint8_t *rfid, uint8_t *rf433_full) {
         }
     }
 
-    // --- ç¬¬äºŒéƒ¨åˆ†ï¼šç¢ºå®šä¸å­˜åœ¨ï¼ŒåŸ·è¡Œå¯«å…¥ ---
-    // é€™è£¡æˆ‘å€‘æŽ¡ç”¨å¾ªç’°è¦†è“‹é‚è¼¯ï¼Œè‹¥ num=5 å‰‡å¾ž 0 é–‹å§‹å­˜
+    // --- ²Ä¤G³¡¤À¡G½T©w¤£¦s¦b¡A°õ¦æ¼g¤J ---
+    // ³o¸Ì§Ú­Ì±Ä¥Î´`ÀôÂÐ»\ÅÞ¿è¡A­Y num=5 «h±q 0 ¶}©l¦s
     write_index = (num >= MAX_KEY_NUM) ? 0 : num;
     addr = KEY_DATA_START_ADDR + (write_index * KEY_BLOCK_SIZE);
 
-    // å¯«å…¥ RFID
+    // ¼g¤J RFID
     for (k = 0; k < 4; k++) {
         FLASH_ProgramByte(addr + k, rfid[k]);
     }
-    // å¯«å…¥ 433MHz (å« CRC å…± 10 bytes) æœ€å¾Œ2byteæ˜¯8byte raw keyçš„crcä¹Ÿæ˜¯æ–°çš„å–šé†’ç¢¼
+    // ¼g¤J 433MHz (§t CRC ¦@ 10 bytes) ³Ì«á2byte¬O8byte raw keyªºcrc¤]¬O·sªº³ê¿ô½X
     for (k = 0; k < 10; k++) {
         FLASH_ProgramByte(addr + 4 + k, rf433_full[k]);
     }
 
-    // æ›´æ–°æ•¸é‡ (å¦‚æžœé‚„æ²’æ»¿æ‰å¢žåŠ ï¼Œæ»¿äº†å°±ç¶­æŒ MAX_KEY_NUM)
+    // §ó·s¼Æ¶q (¦pªGÁÙ¨Sº¡¤~¼W¥[¡Aº¡¤F´Nºû«ù MAX_KEY_NUM)
     if (num < MAX_KEY_NUM) {
         FLASH_ProgramByte(KEY_COUNT_ADDR, num + 1);
     }
@@ -342,7 +342,7 @@ u8 Check_Combined_433M(uint8_t *target_rf433) {
     for (i = 0; i < num; i++) {
         addr = KEY_DATA_START_ADDR + (i * KEY_BLOCK_SIZE);
         match = 1;
-        // å¾žåç§»é‡ +4 é–‹å§‹æ¯”å° 8 bytes (å« CRC)
+        // ±q°¾²¾¶q +4 ¶}©l¤ñ¹ï 8 bytes (§t CRC)
         for (k = 0; k < 8; k++) {
             if (FLASH_ReadByte(addr + 4 + k) != target_rf433[k]) {
                 match = 0;
@@ -369,7 +369,7 @@ u8 Check_Combined_RFID(uint8_t *target_rfid) {
     for (i = 0; i < num; i++) {
         addr = KEY_DATA_START_ADDR + (i * KEY_BLOCK_SIZE);
         match = 1;
-        // å¾žåç§»é‡ +0 é–‹å§‹æ¯”å° 4 bytes
+        // ±q°¾²¾¶q +0 ¶}©l¤ñ¹ï 4 bytes
         for (k = 0; k < 4; k++) {
             if (FLASH_ReadByte(addr + k) != target_rfid[k]) {
                 match = 0;
@@ -656,6 +656,16 @@ void Handle_State_Wait(uint8_t *ign_wait)
 {
     UART2_SendStr("PKE_OPER_STA_WAIT in!");
 
+    /* Check if Power Key is pressed; if so, immediately shut down to POWER_OFF */
+    if (TJTW_PKE.power_event_flag) {
+        TJTW_PKE.power_event_flag = 0;             // Clear power key trigger flag
+        motor_turn_off();                           // Execute motor locking
+        BR_LIGHT_OFF();                             // Turn off the light
+        TJTW_PKE.oper_state = PKE_OPER_STA_POWER_OFF; // Transition to POWER_OFF state
+        *ign_wait = 0;                                  // Exit WAIT state
+        return;
+    }
+
     if (IGN_IS_ON()) {
         /* Ignition ON: transition to IDLE */
         TJTW_PKE.oper_state = PKE_OPER_STA_IDLE;
@@ -675,6 +685,7 @@ void Handle_State_Wait(uint8_t *ign_wait)
     }
 }
 
+
 void Handle_State_Idle(int *idle)
 {
     if (*idle == 0) {
@@ -686,16 +697,14 @@ void Handle_State_Idle(int *idle)
     /* Blue light indicator */
     BR_LIGHT_ON();
 
+    /* Power Key press in IDLE state; clear flag only */
     if (TJTW_PKE.power_event_flag) {
-        /* Power OFF event */
-        TJTW_PKE.power_event_flag = 0;
-        motor_turn_off();
-        TJTW_PKE.oper_state = PKE_OPER_STA_POWER_OFF;
-        TIM2_CCxCmd(TIM2_CHANNEL_2, DISABLE);
-        BR_LIGHT_OFF();
-        UART2_SendStr("PKE_OPER_STA_IDLE out!");
-        *idle = 0;
-    } else if (!IGN_IS_ON()) {
+        TJTW_PKE.power_event_flag = 0; // Clear flag without executing motor_turn_off() or state transition
+        UART2_SendStr("Power Key pressed during IDLE, ignored!");
+    } 
+    
+    /* Transition to POWER_OFF only when ignition switch (IGN) is manually turned OFF */
+    if (!IGN_IS_ON()) {
         /* Ignition OFF event */
         motor_turn_off();
         TJTW_PKE.oper_state = PKE_OPER_STA_POWER_OFF;
