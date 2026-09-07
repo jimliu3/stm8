@@ -10,6 +10,9 @@
 #include <string.h>
 #include <stdlib.h>
 
+#define TEST_MODE_RFID   1      //  RFID test mode
+#define TEST_MODE_LF     0    //  LF (125kHz / 433MHz) test mode
+
 
 unsigned char RFFull = 0;
 unsigned char RFBit;
@@ -941,6 +944,7 @@ void Handle_State_Power_Off(void)
     UART2_SendStr("PKE_OPER_STA_POWER_OFF out!");
 }
 
+#if TEST_MODE_RFID
 void Poll_RFID(void)
 {
     uint8_t rfid_set = 0;
@@ -965,6 +969,56 @@ void Poll_RFID(void)
 
     Delay_ms(200);
 }
+#endif
+
+#if TEST_MODE_LF
+void Test_LF_Simple(void)
+{
+    uint8_t rolling_hi;
+    uint8_t rolling_lo;
+    uint16_t rolling_counter;
+    uint8_t delay_loop;
+    uint8_t key_idx;
+
+    key_idx = 0;
+
+    if (cached_key_count == 0) return;
+
+    /* Clear RF receive flags and buffer */
+    disableInterrupts();
+    RFFull = 0;
+    First_flag = 0;
+    BitCount = 0;
+    memset(Buff_B, 0, sizeof(Buff_B));
+    enableInterrupts();
+
+    /* sent 125kHz */
+    rolling_counter = generate_valid_rolling_counter(cached_keys[key_idx][12], cached_keys[key_idx][13]);
+    rolling_hi = (uint8_t)(rolling_counter >> 8);
+    rolling_lo = (uint8_t)(rolling_counter & 0xFF);
+
+    //LF_SendData(cached_keys[key_idx][12], cached_keys[key_idx][13], PATTREN_BIT, LF_SEND_CH1, rolling_hi, rolling_lo); //learned
+    LF_SendData(0xc3, 0x3a, PATTREN_BIT, LF_SEND_CH1, 0x01, 0x01); //not learn
+    Delay_ms(100);
+
+    /* Wait for 433MHz response */
+    // for (delay_loop = 0; delay_loop < 250; delay_loop++) {
+    //     Delay_ms(2);
+        
+    //     if (RFFull) {
+    //         BZ_ON();
+    //         Delay_ms(50);
+    //         BZ_OFF();
+            
+    //         disableInterrupts();
+    //         RFFull = 0;
+    //         enableInterrupts();
+            
+    //         break;
+    //     }
+    // }
+}
+#endif
 
 void main()
 {
@@ -1033,7 +1087,15 @@ void main()
         //         TJTW_PKE.oper_state = PKE_OPER_STA_POWER_OFF;
         //         break;
         // }
+#if TEST_MODE_RFID
         Poll_RFID();
+
+#elif TEST_MODE_LF
+        Test_LF_Simple();
+
+#else
+        #error 
+#endif
 
     }
 }
