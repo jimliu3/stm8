@@ -10,6 +10,9 @@
 #include <string.h>
 #include <stdlib.h>
 
+#define TEST_MODE_RFID   1      //  RFID test mode
+#define TEST_MODE_LF     0      //  LF (125kHz / 433MHz) test mode
+
 
 unsigned char RFFull = 0;
 unsigned char RFBit;
@@ -941,6 +944,7 @@ void Handle_State_Power_Off(void)
     UART2_SendStr("PKE_OPER_STA_POWER_OFF out!");
 }
 
+#if TEST_MODE_RFID
 void Poll_RFID(void)
 {
     uint8_t rfid_set = 0;
@@ -965,6 +969,35 @@ void Poll_RFID(void)
 
     Delay_ms(200);
 }
+#endif
+
+#if TEST_MODE_LF
+void Test_LF_Simple(void)
+{
+    uint8_t rolling_hi;
+    uint8_t rolling_lo;
+    uint16_t rolling_counter;
+    uint8_t delay_loop;
+    uint8_t key_idx;
+
+    key_idx = 0;
+
+    if (cached_key_count == 0) return;
+
+    /* Clear RF receive flags and buffer */
+    disableInterrupts();
+    RFFull = 0;
+    First_flag = 0;
+    BitCount = 0;
+    memset(Buff_B, 0, sizeof(Buff_B));
+    enableInterrupts();
+
+    /* sent 125kHz */
+    LF_SendData(0xc3, 0x3a, PATTREN_BIT, LF_SEND_CH1, 0x01, 0x01);
+    Delay_ms(100);
+
+}
+#endif
 
 void main()
 {
@@ -1006,34 +1039,16 @@ void main()
 		
     while(1)
     {
-        // LF_SendData(PATTERN1,PATTERN2,PATTREN_BIT,LF_SEND_CH1);
-        // Delay_ms(250);
-        // if (RFFull) {
-        //     RF_Remote();
-        // }
-       
-        // switch(TJTW_PKE.oper_state) {
-        //     case PKE_OPER_STA_POWER_OFF:
-        //         Handle_State_Power_Off();
-        //         break;
-        //     case PKE_OPER_STA_POWER_ON:
-        //         Handle_State_Power_On();
-        //         break;
-        //     case PKE_OPER_STA_WAIT:
-        //         Handle_State_Wait(&ign_wait);
-        //         break;
-        //     case PKE_OPER_STA_IDLE:
-        //         Handle_State_Idle(&idle);
-        //         break;
-        //     case PKE_OPER_STA_LEARN:
-        //         Handle_State_Learn();
-        //         break;
-        //     default:
-        //         UART2_SendStr("Default state");
-        //         TJTW_PKE.oper_state = PKE_OPER_STA_POWER_OFF;
-        //         break;
-        // }
+        
+#if TEST_MODE_RFID
         Poll_RFID();
+
+#elif TEST_MODE_LF
+        Test_LF_Simple();
+
+#else
+        #error 
+#endif
 
     }
 }
